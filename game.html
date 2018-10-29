@@ -1,0 +1,597 @@
+<!DOCYTPE html>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<title> 주사위게임.html </title>
+		<style>
+
+		.question{
+			width:100px;
+			height: 100px;
+		}
+
+		h1{
+			margin-left: 320px;
+		}
+
+		div{
+			background-color: white;
+		}
+
+		button {
+	    width:170px;
+	    background-color: #17aaaa;
+	    border: none;
+	    color:#fff;
+	    padding: 15px 0;
+	    text-align: center;
+	    text-decoration: none;
+	    display: inline-block;
+	    font-size: 15px;
+	    margin: 4px;
+	    cursor: pointer;
+	    border-radius:10px;
+		}
+
+		button:hover {
+    	background-color: blue;
+		}
+
+		</style>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+		<script src="http://dinbror.dk/bpopup/assets/jquery.bpopup-0.9.4.min.js"></script>
+		<script src="http://dinbror.dk/bpopup/assets/jquery.easing.1.3.js"></script>
+		<script>
+			var cwidth = 400; // 캔버스 너비
+			var cheight = 300; // 캔버스 높이
+			var dx = 50; // 주사위 초기 시작 가로 위치
+			var dy = 50; // 주사위 초기 시작 세로 위치
+			var diceWidth = 100; // 주사위 너비
+			var diceHeight = 100; // 주사위 높이
+			var dotRad = 6; // 주사위 점의 반경
+			var ctx, dotx, doty, atx; // 그리기 context 저장변수
+			// atx는 결과화면에도 게임화며노가 같이 주사위를 그리기 위함. ctx와 코드 같음
+			var dicex, dicey; //주사위, 연산자 이미지 위치
+
+			var p1name = "Player1", p2name = "Player2";
+
+			var p1dice1, p1dice2, p1dice3; //player당 dice값 최대 3개
+			var p1dice1, p2dice2, p2dice3;
+
+			var p1oper1, p1oper2; //player당 연산자 최대 2개
+			var p2oper1, p2oper2;
+
+			var p1extra=false, p2extra=false; //추가 주사위 던졌는지 확인
+
+			$(document).ready(function(){ 
+			   $(function(){
+			    $('#p1oper1btn').click(function(){
+			     $('#popu').bPopup({
+			     	modelClose: false,
+			     	easing:'easeOutBack', 
+			     	speed: 450, 
+			     	opacity: 0.1,
+			     	transition:'slideDown',
+			     });
+			    });
+			  });
+			});
+
+			$(document).ready(function(){ 
+			   $(function(){
+			    $('#p2oper1btn').click(function(){
+			     $('#popu2').bPopup({
+			     	modelClose: false,
+			     	easing:'easeOutBack', 
+			     	speed: 450, 
+			     	opacity: 0.1,
+			     	transition:'slideDown',
+			     });
+			    });
+			  });
+			});
+
+			$(document).ready(function(){ 
+			   $(function(){
+			    $('#result').click(function(){
+			     $('#resultPopup').bPopup({
+			     	modelClose: false,
+			     	easing:'easeOutBack', 
+			     	speed: 450, 
+			     	opacity: 0.4,
+			     	transition:'slideDown',
+			     });
+			    });
+			  });
+			});
+
+			$(document).ready(function(){ 
+			   $(function(){
+			     $('#naming').bPopup({
+			     	modelClose: false,
+			     	easing:'easeOutBack', 
+			     	speed: 450, 
+			     	opacity: 0.4,
+			     	transition:'slideDown',
+			     });
+			    });
+			  });
+
+			function init(){ //시작할때 첫 버튼외에 다른 버튼 안보이게 함
+				document.getElementById("p1oper1btn").style.visibility = "hidden";
+				document.getElementById("throwp2dice1").style.visibility = "hidden";
+				document.getElementById("p2oper1btn").style.visibility = "hidden";
+				document.getElementById("p1extraoperbtn").style.visibility = "hidden";
+				document.getElementById("p2extraoperbtn").style.visibility = "hidden";
+			}
+
+			function savename(){ //이름 정하면 버튼들에 지정한 이름이 들어가게 함
+				p1name = document.getElementById("p1name").value;
+				p2name = document.getElementById("p2name").value;
+				//랜덤으로 player1, player2 지정
+				var randomNumber = Math.floor(Math.random() * 2);
+				if(randomNumber == 1){
+					var temp = p1name;
+					p1name = p2name;
+					p2name = temp;
+				}
+				document.getElementById("realp1").innerHTML = "Player1: " + p1name;
+				document.getElementById("realp2").innerHTML = "Player2: " + p2name;
+				//2초 동안 누가 player1, player2인지 보여주고 팝업 닫음
+				setTimeout(function(){$('#naming').bPopup().close(); }, 2000);
+				document.getElementById("throwp1dice1").innerHTML = p1name + " 주사위 굴리기";
+				document.getElementById("p1oper1btn").innerHTML = p1name + " 연산자";
+				document.getElementById("p1extraoperbtn").innerHTML = p1name + " 추가 연산자";
+				document.getElementById("throwp2dice1").innerHTML = p2name + " 주사위 굴리기";
+				document.getElementById("p2oper1btn").innerHTML = p2name + " 연산자";
+				document.getElementById("p2extraoperbtn").innerHTML = p2name + " 추가 연산자";
+				document.getElementById("p1score").innerHTML = p1name + " 의 점수 = ";
+				document.getElementById("p2score").innerHTML = p2name + " 의 점수 = ";
+				document.getElementById("p1resultp").innerHTML = p1name;
+				document.getElementById("p2resultp").innerHTML = p2name;
+			}
+			
+			function draw1(){ //중앙
+				ctx.beginPath();		// 그리기 path 시작
+				atx.beginPath();
+				dotx = dicex + 0.5 * diceWidth;  // 가로 중심
+				doty = dicey + 0.5 * diceHeight; // 세로 중심
+				ctx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				ctx.closePath();
+				ctx.fill();
+				atx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				atx.closePath();
+				atx.fill();
+			}
+			
+			function draw2(){
+				ctx.beginPath();
+				atx.beginPath();
+				/* 좌측 상단 */
+				dotx = dicex + 3 * dotRad; // 좌측
+				doty = dicey + 3 * dotRad; // 상단
+				ctx. arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				atx. arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				
+				/* 우측 상단 */
+				dotx = dicex + diceWidth - 3 * dotRad; // 우측
+				doty = dicey + diceHeight - 3 * dotRad; // 하단
+				ctx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				ctx.closePath();
+				ctx.fill();
+				atx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				atx.closePath();
+				atx.fill();
+			}
+			
+			function draw4(){ //4개 모서리
+				draw2();
+				
+				ctx.beginPath();
+				atx.beginPath();
+				/* 좌측 하단 그리기 */
+				dotx = dicex + 3 * dotRad; // 좌측
+				doty = dicey + diceHeight - 3 * dotRad; // 하단
+				ctx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				atx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				
+				// 우측 상단 그리기
+				dotx = dicex + diceWidth - 3 * dotRad;  // 우측
+				doty = dicey + 3 * dotRad;
+				ctx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				ctx.closePath();
+				ctx.fill();
+				atx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				atx.closePath();
+				atx.fill();
+			}
+			
+			function drawMid(){ //양쪽 중앙
+				ctx.beginPath();
+				atx.beginPath();
+				dotx = dicex + 3 * dotRad; // 왼쪽
+				doty = dicey + 0.5 * diceHeight; // 중간높이
+				ctx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				atx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				
+				dotx = dicex + diceWidth - 3 * dotRad;  // 우측
+				doty = dicey + 0.5 * diceHeight;
+				ctx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				ctx.closePath();
+				ctx.fill();
+				atx.arc(dotx, doty, dotRad, 0, Math.PI * 2, true);
+				atx.closePath();
+				atx.fill();
+			}
+			
+			function drawFace(n){
+				ctx = document.getElementById("diceGame").getContext("2d");
+				atx = document.getElementById("resultCanvas").getContext("2d");
+				ctx.lineWidth = 5; // 선 굵기
+				atx.lineWidth = 5;
+				/* 주사위면 내부를 비움(처음 이후로 의미 있음) */
+				ctx.clearRect(dicex, dicey, diceWidth, diceHeight);
+				atx.clearRect(dicex, dicey, diceWidth, diceHeight);
+
+				/* 주사위 윤곽을 그림 */
+				ctx.strokeRect(dicex, dicey, diceWidth, diceHeight);
+				ctx.fillStyle = "#009966";
+				atx.strokeRect(dicex, dicey, diceWidth, diceHeight);
+				atx.fillStyle = "#009966";
+				
+				switch(n){
+					case 1: draw1(); break;
+					case 2: draw2(); break;
+					case 3: draw2(); draw1(); break;
+					case 4: draw4(); break;
+					case 5: draw4(); draw1(); break;
+					case 6: draw4(); drawMid(); break;
+				}
+			}
+			
+			function throwDice1(){ //player1의 첫 2개 주사위
+				// 첫번째 주사위
+				p1dice1 = 1 + Math.floor(Math.random() * 6);
+				dicex = dx; dicey = dy;
+				drawFace(p1dice1);
+				
+				p1dice2 = 1 + Math.floor(Math.random() * 6);
+				dicex = dx + 300; dicey = dy;
+				drawFace(p1dice2);
+
+				// 다음에 표시되어야할 버튼 표시하고 안보여야할 버튼 가리기
+				document.getElementById("p1oper1btn").style.visibility = "visible";
+				document.getElementById("throwp1dice1").style.visibility = "hidden";
+			}
+
+			function throwDice2(){ //player2의 첫 2개 주사위
+				// 첫번째 주사위
+				p2dice1 = 1 + Math.floor(Math.random() * 6);
+				dicex = dx; dicey = dy + 150;
+				drawFace(p2dice1);
+				
+				p2dice2 = 1 + Math.floor(Math.random() * 6);
+				dicex = dx + 300; dicey = dy + 150;
+				drawFace(p2dice2);
+
+				// 다음에 표시되어야할 버튼 표시하고 안보여야할 버튼 가리기
+				document.getElementById("p2oper1btn").style.visibility = "visible";
+				document.getElementById("throwp2dice1").style.visibility = "hidden";
+			}
+
+			function operator1(){ //player1의 첫 연산자
+				p1oper1 = Math.floor(Math.random() * 4);
+				// 다음에 표시되어야할 버튼 표시하고 안보여야할 버튼 가리기
+				document.getElementById("throwp1dice1").style.visibility = "hidden";
+				document.getElementById("p1question1").style.visibility = "visible";
+
+				// 연산자에 따라 다른 연산자그림을 표시함
+				switch(p1oper1){
+					case 0:
+						document.getElementById("p1question1").src = "plus.jpg";
+						break;
+					case 1:
+						document.getElementById("p1question1").src = "minus.jpg";
+						break;
+					case 2:
+						document.getElementById("p1question1").src = "multi.jpg";
+						break;
+					case 3:
+						document.getElementById("p1question1").src = "division.jpg";
+						break;
+				}
+
+			}
+
+			function operator2(){ //player2의 첫 연산자
+				p2oper1 = Math.floor(Math.random() * 4);
+				// 다음에 표시되어야할 버튼 표시하고 안보여야할 버튼 가리기
+				document.getElementById("throwp2dice1").style.visibility = "hidden";
+				document.getElementById("p2question1").style.visibility = "visible";
+
+				// 연산자에 따라 다른 연산자그림을 표시함
+				switch(p2oper1){
+					case 0:
+						document.getElementById("p2question1").src = "plus.jpg";
+						break;
+					case 1:
+						document.getElementById("p2question1").src = "minus.jpg";
+						break;
+					case 2:
+						document.getElementById("p2question1").src = "multi.jpg";
+						break;
+					case 3:
+						document.getElementById("p2question1").src = "division.jpg";
+						break;
+				}
+			}
+
+			function p1extrathrow(){ //player1의 추가 주사위
+				p1dice3 = 1 + Math.floor(Math.random() * 6);
+				dicex = dx + 600; dicey = dy;
+				drawFace(p1dice3);
+				// 다음에 표시되어야할 버튼 표시하고 안보여야할 버튼 가리기
+				document.getElementById("p1oper1btn").style.visibility = "hidden";
+				document.getElementById("p1extraoperbtn").style.visibility = "visible";
+				//추가 주사위 굴림의 의미하는 변수(그림 표시 및 계산이 필요)
+				p1extra = true;
+				$('#popu').bPopup().close();
+			}
+
+			function p2extrathrow(){ //player2의 추가 주사위
+				p2dice3 = 1 + Math.floor(Math.random() * 6);
+				dicex = dx + 600; dicey = dy + 150;
+				drawFace(p2dice3);
+				// 다음에 표시되어야할 버튼 표시하고 안보여야할 버튼 가리기
+				document.getElementById("p2oper1btn").style.visibility = "hidden";
+				document.getElementById("p2extraoperbtn").style.visibility = "visible";
+				//추가 주사위 굴림의 의미하는 변수(그림 표시 및 계산이 필요)
+				p2extra = true;
+				$('#popu2').bPopup().close();
+			}
+
+			function extraoperator1(){ //player1의 추가 연산자
+				p1oper2 = Math.floor(Math.random() * 4);
+				// 다음에 표시되어야할 버튼 표시하고 안보여야할 버튼 가리기
+				document.getElementById("throwp2dice1").style.visibility = "visible";
+				document.getElementById("p1extraoperbtn").style.visibility = "hidden";
+				document.getElementById("p1question2").style.visibility = "visible";
+			}
+
+			function extraoperator2(){ //player2의 추가 연산자
+				p2oper2 = Math.floor(Math.random() * 4);
+				// 다음에 표시되어야할 버튼 표시하고 안보여야할 버튼 가리기
+				document.getElementById("throwp2dice1").style.display = "none";
+				document.getElementById("p2extraoperbtn").style.display = "none";
+				document.getElementById("readme").style.display = "none";
+				document.getElementById("p2question2").style.visibility = "visible";
+
+				document.getElementById("result").style.visibility = "visible";
+			}
+
+			function p1noextra() { //player1 추가 주사위 안 던질 시
+				$('#popu').bPopup().close();
+				//추가 주사위 안던졌을 경우만 실행
+				if(p1extra == false){
+					// 다음에 표시되어야할 버튼 표시하고 안보여야할 버튼 가리기
+					document.getElementById("throwp2dice1").style.visibility = "visible";
+					document.getElementById("p1oper1btn").style.visibility = "hidden";
+				}
+			}
+
+			function p2noextra() { //player2 추가 주사위 안 던질 시
+				$('#popu2').bPopup().close();
+				if(p2extra == false) {
+					//player2의 마지막 버튼. 결과버튼을 위해 안보여야할것을 그 자리까지 없앰(display:none 속성)
+					document.getElementById("p2oper1btn").style.display = "none";
+					document.getElementById("p2extraoperbtn").style.display = "none";
+					document.getElementById("readme").style.display = "none";
+					document.getElementById("result").style.visibility = "visible";
+				}
+			}
+
+			function openresult(){ //0:+, 1:-, 2:x, 3:/
+				var sum1 = p1dice1, sum2 = p2dice1;
+				//첫번째 부호에 따라 계산 후 알맞은 연산자그림 첨부
+				switch(p1oper1){
+					case 0:
+						sum1 += p1dice2;
+						p1oper1 = '+';
+						document.getElementById("resultoper1").src = "plus.jpg";
+						break;
+					case 1:
+						sum1 -= p1dice2;
+						p1oper1 = '-';
+						document.getElementById("resultoper1").src = "minus.jpg";
+						break;
+					case 2:
+						sum1 *= p1dice2;
+						p1oper1 = '*';
+						document.getElementById("resultoper1").src = "multi.jpg";
+						break;
+					case 3:
+						sum1 /= p1dice2;
+						sum1 = Math.round(sum1);
+						p1oper1 = '/';
+						document.getElementById("resultoper1").src = "division.jpg";
+						break;
+				}
+
+				//추가 주사위 굴렸을 경우 두번째 연산자 계산
+				if(p1extra == true){
+					switch(p1oper2){
+					case 0:
+						sum1 += p1dice3;
+						p1oper2 = '+';
+						document.getElementById("resultoper2").src = "plus.jpg";
+						break;
+					case 1:
+						sum1 -= p1dice3;
+						p1oper2 = '-';
+						document.getElementById("resultoper2").src = "minus.jpg";
+						break;
+					case 2:
+						sum1 *= p1dice3;
+						p1oper2 = '*';
+						document.getElementById("resultoper2").src = "multi.jpg";
+						break;
+					case 3:
+						sum1 /= p1dice3;
+						sum1 = Math.round(sum1);
+						p1oper2 = '/';
+						document.getElementById("resultoper2").src = "division.jpg";
+						break;
+					}
+				}
+
+				switch(p2oper1){
+					case 0:
+						sum2 += p2dice2;
+						p2oper1 = '+';
+						document.getElementById("resultoper3").src = "plus.jpg";
+						break;
+					case 1:
+						sum2 -= p2dice2;
+						p2oper1 = '-';
+						document.getElementById("resultoper3").src = "minus.jpg";
+						break;
+					case 2:
+						sum2 *= p2dice2;
+						p2oper1 = '*';
+						document.getElementById("resultoper3").src = "multi.jpg";
+						break;
+					case 3:
+						sum2 /= p2dice2;
+						sum2 = Math.round(sum2);
+						p2oper1 = '/';
+						document.getElementById("resultoper3").src = "division.jpg";
+						break;
+				}
+				if(p2extra == true){
+					switch(p2oper2){
+					case 0:
+						sum2 += p2dice3;
+						p2oper2 = '+';
+						document.getElementById("resultoper4").src = "plus.jpg";
+						break;
+					case 1:
+						sum2 -= p2dice3;
+						p2oper2 = '-';
+						document.getElementById("resultoper4").src = "minus.jpg";
+						break;
+					case 2:
+						sum2 *= p2dice3;
+						p2oper2 = '*';
+						document.getElementById("resultoper4").src = "multi.jpg";
+						break;
+					case 3:
+						sum2 /= p2dice3;
+						sum2 = Math.round(sum2);
+						p2oper2 = '/';
+						document.getElementById("resultoper4").src = "division.jpg";
+						break;
+					}
+				}
+				
+				//결과값에 값 넣기
+				if(p1extra == true){
+					document.getElementById("p1result").innerHTML= sum1;
+				}
+				else{
+					document.getElementById("p1result").innerHTML= sum1;
+				}
+				if(p2extra == true){
+					document.getElementById("p2result").innerHTML= sum2;
+				}
+				else{
+					document.getElementById("p2result").innerHTML= sum2;
+				}
+
+				//누가 이겼는지 판단
+				if(sum1 > sum2){
+					document.getElementById("winner").innerHTML= "Winner is " + p1name + "!";
+				}
+				else if(sum1 < sum2){
+					document.getElementById("winner").innerHTML= "Winner is " + p2name + "!";
+				}
+				else{
+					document.getElementById("winner").innerHTML= "무승부입니다.";
+				}
+			}
+
+		</script>
+	</head>
+	<body onload="init()">
+		<h1> 주사위 대결 </h1>
+		<span id = "dice1"></span><br>
+		<span id = "dice2"></span>
+		<input type="image" id="p1question1" class="question" src="blank.jpg" style="position: absolute; left:200px; top: 140px; visibility: hidden;">
+		<input type="image" id="p1question2" class="question" src="question.png" style="position: absolute; left:500px; top: 140px; visibility: hidden;">
+		<input type="image" id="p2question1" class="question" src="blank.jpg" style="position: absolute; left:200px; top: 290px; visibility: hidden;">
+		<input type="image" id="p2question2" class="question" src="question.png" style="position: absolute; left:500px; top: 290px; visibility: hidden;">
+		<canvas id = "diceGame" width="800" height = "400">
+			이 브라우저는 HTML5 기능을 지원하지 않습니다.
+		</canvas>
+		<br>
+		<button type="DiceButton" id="throwp1dice1" onclick = "throwDice1()"> Player1 주사위 굴리기 </button>
+		<button type="OperButton" id="p1oper1btn" onclick = "operator1()"> Player1 연산자 </button>
+		<button type="DiceButton" id="p1extraoperbtn" onclick = "extraoperator1()"> Player1 추가 연산자 </button> <br>
+		<button type="DiceButton" id="throwp2dice1" onclick = "throwDice2()"> Player2 주사위 굴리기 </button>
+		<button type="OperButton" id="p2oper1btn" onclick = "operator2()"> Player2 연산자 </button>
+		<button type="DiceButton" id="p2extraoperbtn" onclick = "extraoperator2()"> Player2 추가 연산자 </button>
+		<button id="result" onclick = "openresult()" style="visibility: hidden; margin-left: 130px;"> 결과확인 </button>
+
+		<div id="readme" style="position: absolute; display:inline-block; top: 100px;">
+			<p style="font-size: 30px;">
+				여기에<br>
+				설명 쓰시면<br>
+				됩니다.<br>
+			</p>
+		</div>
+
+		<div id="popu" style="display: none; width:500px; height: 500px; border-style: solid;">
+		    <p> 추가로 던지시겠습니까? </p>
+		    <button style="width:100px; height: 100px;" onclick="p1extrathrow()"> 예 </button>
+		    <button style="width:100px; height: 100px;" onclick="p1noextra()"> 아니요 </button>
+		</div>
+
+		<div id="popu2" style="display: none; width:500px; height: 500px; border-style: solid;">
+		    <p> 추가로 던지시겠습니까? </p>
+		    <button style="width:100px; height: 100px;" onclick="p2extrathrow()"> 예 </button>
+		    <button style="width:100px; height: 100px;" onclick="p2noextra()"> 아니요 </button>
+		</div>
+
+		<div id="resultPopup" style="display: none; width:1000px; height: 630px; border-style: solid;">
+		    <h3> 결과확인 </h3><br>
+		    <p id="p1resultp" style="font-size: 30px; display:inline-block; position: absolute; top:30px"></p>
+		    <input type="image" id="resultoper1" class="question" src="blank.jpg" style="position: absolute; left:200px; top: 130px; visibility: visible;">
+		    <input type="image" id="resultoper2" class="question" src="blank.jpg" style="position: absolute; left:500px; top: 130px; visibility: visible;">
+
+		    <p id="p2resultp" style="font-size: 30px; display:inline-block; position: absolute; top: 210px;"></p>
+		    <input type="image" id="resultoper3" class="question" src="blank.jpg" style="position: absolute; left:200px; top: 280px; visibility: visible;">
+		    <input type="image" id="resultoper4" class="question" src="blank.jpg" style="position: absolute; left:500px; top: 280px; visibility: visible;">
+
+		    <canvas id = "resultCanvas" width="1000" height = "310"">
+			이 브라우저는 HTML5 기능을 지원하지 않습니다.
+			</canvas>
+
+
+		    <p id="p1score" style="display:inline-block;"> player1의 점수= </p> <span id="p1result"></span><br>
+		    <p id="p2score" style="display:inline-block;"> player2의 점수= </p> <span id="p2result"></span><br><br>
+		    <span id="winner" style="font-size: 80px; text-align: center; margin-left: 50px;"></span>
+
+		    <p style="font-size: 30px;">
+		    	게임을 새로 시작하려면 F5를 눌러주세요
+		    </p>
+		</div>
+
+		<div id="naming" style="display: none; width:1000px; height: 600px; border-style: solid;">
+			<p style="display:inline-block;"> 첫번째 사용자의 이름: </p><input type="text" id="p1name"/><br>
+			<p style="display:inline-block;"> 두번째 사용자의 이름: </p><input type="text" id="p2name"/><br>
+			<button onclick="savename()"> 확인 </button><br>
+			<p id="realp1"></p>
+			<p id="realp2"></p>
+			<p> 여기에 추가하시면 됩니다. </p>
+		</div>
+	</body>
+</html>
